@@ -2,3 +2,6 @@
 /venv
 /v1/results
 /utils/sample
+*.mp4
+*.png
+*.avi

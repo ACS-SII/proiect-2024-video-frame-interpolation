@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from torch.nn.functional import interpolate as F_interpolate
 from PIL import Image
 import gc
 import torch.nn.functional as F
@@ -68,7 +67,7 @@ def main():
     print(f"Using GPU: {torch.cuda.get_device_name(0)}")
     print(f"GPU Memory Available: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
     
-    BATCH_SIZE = 100
+    BATCH_SIZE = 10
     
     device = torch.device('cuda:0')
     torch.cuda.empty_cache()

@@ -95,12 +95,12 @@ def process_video(input_path, output_path, model, device, time_limit_seconds=17)
     print(f"Input video FPS: {fps}")
     print(f"Total frame count: {total_frame_count}")
     print(f"Processing first {time_limit_seconds} seconds ({frame_count} frames)")
-    print(f"Target output FPS: {fps*2}")
+    print(f"Target output FPS: {fps*3}")  # Now tripling the frame rate
     
     print("\nCreating output video writer...")
     temp_output = output_path.rsplit('.', 1)[0] + '_temp.mp4'
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(temp_output, fourcc, fps*2, (width, height))
+    out = cv2.VideoWriter(temp_output, fourcc, fps*3, (width, height))  # Tripled FPS
     
     if not out.isOpened():
         cap.release()
@@ -125,6 +125,7 @@ def process_video(input_path, output_path, model, device, time_limit_seconds=17)
             if not ret:
                 break
             
+            # Process the first pair of frames (prev_frame and curr_frame)
             prev_tiles, positions, padded_size = split_frame_into_tiles(
                 cv2.cvtColor(prev_frame, cv2.COLOR_BGR2RGB)
             )
@@ -133,24 +134,46 @@ def process_video(input_path, output_path, model, device, time_limit_seconds=17)
                 cv2.cvtColor(curr_frame, cv2.COLOR_BGR2RGB)
             )
             
-            interpolated_tiles = []
+            # Generate first interpolated frame
+            interpolated_tiles_1 = []
             for prev_tile, curr_tile in zip(prev_tiles, curr_tiles):
                 prev_tensor = transform(Image.fromarray(prev_tile)).unsqueeze(0).to(device)
                 curr_tensor = transform(Image.fromarray(curr_tile)).unsqueeze(0).to(device)
                 interpolated = interpolate_frame_tensor(model, prev_tensor, curr_tensor, device)
                 interpolated_np = (interpolated.squeeze(0).cpu().numpy() * 255).transpose(1, 2, 0).astype(np.uint8)
-                interpolated_tiles.append(interpolated_np)
+                interpolated_tiles_1.append(interpolated_np)
             
-            interpolated_frame = reconstruct_frame_from_tiles(interpolated_tiles, positions, (height, width))
-            interpolated_bgr = cv2.cvtColor(interpolated_frame, cv2.COLOR_RGB2BGR)
+            interpolated_frame_1 = reconstruct_frame_from_tiles(interpolated_tiles_1, positions, (height, width))
+            interpolated_bgr_1 = cv2.cvtColor(interpolated_frame_1, cv2.COLOR_RGB2BGR)
             
+            # Generate second interpolated frame using the first interpolated frame and curr_frame
+            interpolated_frame_1_tiles, positions, padded_size = split_frame_into_tiles(
+                interpolated_frame_1  # Already in RGB
+            )
+            
+            # Generate second interpolated frame
+            interpolated_tiles_2 = []
+            for int1_tile, curr_tile in zip(interpolated_frame_1_tiles, curr_tiles):
+                int1_tensor = transform(Image.fromarray(int1_tile)).unsqueeze(0).to(device)
+                curr_tensor = transform(Image.fromarray(curr_tile)).unsqueeze(0).to(device)
+                interpolated = interpolate_frame_tensor(model, int1_tensor, curr_tensor, device)
+                interpolated_np = (interpolated.squeeze(0).cpu().numpy() * 255).transpose(1, 2, 0).astype(np.uint8)
+                interpolated_tiles_2.append(interpolated_np)
+            
+            interpolated_frame_2 = reconstruct_frame_from_tiles(interpolated_tiles_2, positions, (height, width))
+            interpolated_bgr_2 = cv2.cvtColor(interpolated_frame_2, cv2.COLOR_RGB2BGR)
+            
+            # Write all frames in sequence
             out.write(prev_frame)
-            out.write(interpolated_bgr)
+            out.write(interpolated_bgr_1)
+            out.write(interpolated_bgr_2)
+            
             prev_frame = curr_frame
             frame_counter += 1
             
             pbar.update(1)
         
+        # Write the final frame
         out.write(prev_frame)
         frame_counter += 1
         
@@ -187,7 +210,7 @@ def main():
     model = load_model(model_path, device)
     
     input_video = "input_6fps.avi"
-    output_video = "output_interpolated.mp4"
+    output_video = "output_interpolated_triple.mp4"
     
     print(f"\nInput video: {input_video}")
     print(f"Output video will be saved to: {output_video}")

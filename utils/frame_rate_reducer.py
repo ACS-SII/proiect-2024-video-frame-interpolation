@@ -28,7 +28,7 @@ def reduce_fps(input_path, output_path, target_fps):
     out.release()
 
 input_video = "input.avi"
-output_video = "output.avi"
-target_fps = 12
+output_video = "input_6fps.avi"
+target_fps = 6
 
 reduce_fps(input_video, output_video, target_fps)
