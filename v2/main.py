@@ -76,24 +76,24 @@ class CombinedLoss(nn.Module):
         super().__init__()
         vgg = models.vgg19(weights=VGG19_Weights.IMAGENET1K_V1).features.eval().to(device)
         self.slices = nn.ModuleList([
-            nn.Sequential(*list(vgg.children())[:2]),    # relu1_1
-            nn.Sequential(*list(vgg.children())[2:7]),   # relu2_1
-            nn.Sequential(*list(vgg.children())[7:12]),  # relu3_1
-            nn.Sequential(*list(vgg.children())[12:21])  # relu4_1
+            nn.Sequential(*list(vgg.children())[:2]),     
+            nn.Sequential(*list(vgg.children())[2:7]),    
+            nn.Sequential(*list(vgg.children())[7:12]),   
+            nn.Sequential(*list(vgg.children())[12:21])   
         ]).eval()
         
         for param in self.parameters():
             param.requires_grad = False
             
     def forward(self, pred, target):
-        # Clamp inputs
+         
         pred = pred.clamp(-1, 1)
         target = target.clamp(-1, 1)
         
-        # L1 Loss
+         
         l1_loss = F.l1_loss(pred, target)
         
-        # VGG Perceptual Loss
+         
         pred_features = []
         target_features = []
         
@@ -106,17 +106,17 @@ class CombinedLoss(nn.Module):
             pred_features.append(x_pred)
             target_features.append(x_target)
             
-        # Calculate perceptual loss with clamping
+         
         perceptual_loss = 0
         for p, t in zip(pred_features, target_features):
             p = p.clamp(-1e3, 1e3)
             t = t.clamp(-1e3, 1e3)
             perceptual_loss += F.l1_loss(p, t)
         
-        # Scale perceptual loss
+         
         perceptual_loss = perceptual_loss * 0.01
         
-        # Combine losses
+         
         total_loss = l1_loss + perceptual_loss
         
         return total_loss, l1_loss, perceptual_loss
@@ -179,7 +179,7 @@ def main():
     
     print(f"Datasets loaded. Training samples: {len(train_dataset)}, Test samples: {len(test_dataset)}")
 
-    num_epochs = 12
+    num_epochs = 2
     best_loss = float('inf')
     
     for epoch in range(num_epochs):
